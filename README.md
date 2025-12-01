@@ -43,8 +43,15 @@ Datasets can be downloaded [here](https://drive.google.com/drive/folders/1FuOysr
    - **OpenAI**: `OPENAI_API_KEY`
    - **Anthropic**: `ANTHROPIC_API_KEY`
    - **Google**: `GOOGLE_APPLICATION_CREDENTIALS` and `GOOGLE_MODEL_PATH`
+   - **Ollama** (optional): `OLLAMA_HOST` (defaults to `http://localhost:11434`)
 
-5. Navigate to specific experiment folder and follow README instructions
+5. **(Optional) For local model testing**: Install [Ollama](https://ollama.ai) and pull desired models:
+   ```bash
+   ollama pull llama3.1:8b
+   ollama pull qwen2.5:14b
+   ```
+
+6. Navigate to specific experiment folder and follow README instructions
 
 ## Citation
 If you find this work useful, please cite our technical report:

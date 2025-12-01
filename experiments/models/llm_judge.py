@@ -2,18 +2,34 @@ import pandas as pd
 import os
 import json
 from .providers.openai import OpenAIProvider
+from .providers.anthropic import AnthropicProvider
+from .providers.google import GoogleProvider
+from .providers.ollama import OllamaProvider
 import time
 import concurrent.futures
 
 class LLMJudge:
-    def __init__(self, prompt: str, model_name: str = "gpt-4.1-2025-04-14", output_column: str = "output", question_column: str = "question", correct_answer_column: str = "answer", distractors_file: str = None):
+    def __init__(self, prompt: str, model_name: str = "gpt-4.1-2025-04-14", output_column: str = "output", question_column: str = "question", correct_answer_column: str = "answer", distractors_file: str = None, provider: str = "openai"):
         self.prompt = prompt
         self.model_name = model_name
         self.output_column = output_column
         self.question_column = question_column
         self.correct_answer_column = correct_answer_column
-        self.provider = OpenAIProvider()
+        self.provider = self._get_provider(provider)
         self.distractors_text = self._load_distractors(distractors_file) if distractors_file else ""
+
+    def _get_provider(self, provider_name: str):
+        """Get the appropriate provider instance based on provider name."""
+        providers = {
+            "openai": OpenAIProvider,
+            "anthropic": AnthropicProvider,
+            "google": GoogleProvider,
+            "ollama": OllamaProvider,
+        }
+        provider_class = providers.get(provider_name.lower())
+        if provider_class is None:
+            raise ValueError(f"Unknown provider: {provider_name}. Available providers: {list(providers.keys())}")
+        return provider_class()
     
     def _load_distractors(self, distractors_file: str) -> str:
         with open(distractors_file, 'r') as f:
