@@ -50,8 +50,17 @@ class BaseProvider(ABC):
 
     def process_batch(self, input_df: pd.DataFrame, output_df: pd.DataFrame, indices_to_process: list[int], model_name: str, output_path: str, input_column: str, output_column: str) -> None:
         timeout_per_request = 500
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(indices_to_process)) as executor:
+
+        # Avoid overloading local/remote inference servers (e.g., Ollama) by spawning too many concurrent requests.
+        # Can be overridden via env var, e.g. NIAH_MAX_WORKERS=4.
+        env_workers = os.getenv("NIAH_MAX_WORKERS", "").strip()
+        try:
+            cap = int(env_workers) if env_workers else 4
+        except Exception:
+            cap = 4
+        max_workers = max(1, min(len(indices_to_process), cap))
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(
                     self.process_single_prompt, 

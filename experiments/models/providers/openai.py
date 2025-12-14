@@ -25,4 +25,12 @@ class OpenAIProvider(BaseProvider):
             return index, "ERROR_NO_CONTENT"
 
     def get_client(self) -> Any:
-        return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # 支援自定義 base_url（用於 vLLM 等）
+        base_url = os.getenv("OPENAI_API_BASE")
+        api_key = os.getenv("OPENAI_API_KEY", "dummy")
+
+        if base_url:
+            print(f"Using custom OpenAI-compatible API: {base_url}")
+            return OpenAI(api_key=api_key, base_url=base_url)
+        else:
+            return OpenAI(api_key=api_key)

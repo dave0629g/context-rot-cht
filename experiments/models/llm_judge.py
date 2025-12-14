@@ -2,17 +2,38 @@ import pandas as pd
 import os
 import json
 from .providers.openai import OpenAIProvider
+from .providers.ollama import OllamaProvider
 import time
 import concurrent.futures
 
 class LLMJudge:
-    def __init__(self, prompt: str, model_name: str = "gpt-4.1-2025-04-14", output_column: str = "output", question_column: str = "question", correct_answer_column: str = "answer", distractors_file: str = None):
+    def __init__(
+        self,
+        prompt: str,
+        model_name: str = "gpt-4.1-2025-04-14",
+        output_column: str = "output",
+        question_column: str = "question",
+        correct_answer_column: str = "answer",
+        distractors_file: str = None,
+        provider_name: str = "openai",
+        ollama_base_url: str = None,
+        ollama_num_ctx: int | None = None,
+    ):
         self.prompt = prompt
         self.model_name = model_name
         self.output_column = output_column
         self.question_column = question_column
         self.correct_answer_column = correct_answer_column
-        self.provider = OpenAIProvider()
+
+        # 選擇 provider
+        if provider_name.lower() == "ollama":
+            if ollama_base_url:
+                self.provider = OllamaProvider(base_url=ollama_base_url, num_ctx=ollama_num_ctx)
+            else:
+                self.provider = OllamaProvider(num_ctx=ollama_num_ctx)
+        else:
+            self.provider = OpenAIProvider()
+
         self.distractors_text = self._load_distractors(distractors_file) if distractors_file else ""
     
     def _load_distractors(self, distractors_file: str) -> str:
@@ -38,8 +59,16 @@ class LLMJudge:
     
     def _process_for_evaluation(self, input_df: pd.DataFrame, output_df: pd.DataFrame, indices_to_process: list[int], output_path: str, output_column_name: str = "llm_judge_output") -> None:
         timeout_per_request = 500
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(indices_to_process)) as executor:
+
+        # Avoid overloading inference servers with too much concurrency.
+        env_workers = os.getenv("NIAH_JUDGE_MAX_WORKERS", "").strip()
+        try:
+            cap = int(env_workers) if env_workers else 4
+        except Exception:
+            cap = 4
+        max_workers = max(1, min(len(indices_to_process), cap))
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(
                     self.provider.process_single_prompt,
